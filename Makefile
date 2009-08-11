@@ -1,12 +1,12 @@
 
-all: ctags
+all: ctags workspace
 	make -C rs all
 	make -C bot all
+	cp bot/Bot workspace/Bot
 	@echo "Everything done!"
-
-work: all
-	cp bot/Bot work/Bot
-	@echo "Binary copied!"
+	
+workspace: 
+	mkdir workspace
 
 ctags:
 	@ctags ./*/*.{cc,hh}

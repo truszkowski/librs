@@ -8,5 +8,5 @@ bot/Makefile.deps
 bot/*.o
 bot/*.a
 bot/Bot
-work
+workspace
 
