@@ -105,9 +105,8 @@ class Time {
     }
 
   private:
-    /**
-     * - !! - Nie tworzymy obiektu - !! -
-     */
+    // nie udostepniamy konstruktorow obiektu,
+    // uzywamy tylko statycznych funkcji
 
     Time(void) { }
     Time(const Time &) { }
