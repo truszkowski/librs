@@ -290,7 +290,7 @@ struct rs_loop {
     string stime, ssize;
     cmatch what;
 
-    if (!regex_search(buffer, what, rs_regex_time)) {
+    if (regex_search(buffer, what, rs_regex_time)) {
       wait_for = strtol(stime.c_str(), 0, 10) + 5;
       rsprintf("Czekam %zd sek...", wait_for);
     } else {

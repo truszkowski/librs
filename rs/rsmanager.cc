@@ -129,14 +129,14 @@ bool loop_fn(void)
       while (getline(in, line))
         out << line << endl;
 
-      out.close();
-      in.close();
+      out.close(); // temporary
+      in.close(); // extends
 
       // Do temporary wszystkie wpisy sa zgrane, wiec usuwamy primary...
       filesystem::remove(primary_queue);
       
       // ... obcinamy plik extends
-      in.open(extends_queue, ios::trunc);
+      in.open(extends_queue, ios::out|ios::trunc); // trzeba dac ios::out !!!
       in.close();
 
       // ... i zastepujemy primary przez temporary
@@ -246,7 +246,7 @@ int main(void)
       if (filesystem::exists(temporary_queue))
         filesystem::rename(temporary_queue, primary_queue);
       else {
-        filesystem::ofstream f(primary_queue, ios::trunc); //creat
+        filesystem::ofstream f(primary_queue, ios::out|ios::trunc); // trzeba dac ios::out !!!
         if (!f.is_open())
           throw EInternal("nie mozna utworzyc pliku: '%s'", primary_queue);
       }
@@ -257,7 +257,7 @@ int main(void)
     return 1;
   }
 
-  //while (loop_fn());
+  while (loop_fn());
   return 0;
 }
 
