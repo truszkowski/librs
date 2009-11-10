@@ -212,7 +212,7 @@ void escape(void)
     rsprintf("Modul RS rzucil wyjatkiem: %s", e.what());
   }
 
-  rsprintf("Koniec!!\n");
+  rsprintf("\nKoniec!!\n");
 }
 
 void catch_sig(int)
