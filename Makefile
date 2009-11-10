@@ -1,19 +1,15 @@
 
 all: ctags workspace
 	make -C rs all
-	make -C bot all
-	cp bot/Bot workspace/Bot
-	@echo "Everything done!"
+	cp rs/rsmanager workspace/rsmanager
 	
 workspace: 
 	mkdir workspace
 
 ctags:
-	@ctags ./*/*.{cc,hh}
+	ctags rs/*.{cc,hh}
 
 clean:
 	make -C rs clean
-	make -C bot clean
-	@rm -f tags
-	@echo "Everything cleaned!"
+	rm -f tags
 
