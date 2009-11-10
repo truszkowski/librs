@@ -210,6 +210,7 @@ struct rs_loop {
 
     // Sprawdzamy czy plik jest dostepny...
     if (regex_search(buffer, rs_regex_illegal_file) ||
+        regex_search(buffer, rs_regex_illegal_file2) ||
         regex_search(buffer, rs_regex_not_available) ||
         regex_search(buffer, rs_regex_not_found)) {
       rsprintf("Plik '%s' jest niedostepny", url.c_str());

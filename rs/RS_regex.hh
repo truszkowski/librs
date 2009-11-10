@@ -6,6 +6,8 @@ static const boost::regex rs_regex_not_available(
     "This file has been deleted");
 static const boost::regex rs_regex_illegal_file(
     "This file is suspected to contain illegal content and has been blocked.");
+static const boost::regex rs_regex_illegal_file2(
+    "Due to a violation of our terms of use, the file has been removed from the server.");
 static const boost::regex rs_regex_not_found(
     "The file could not be found.");
 static const boost::regex rs_regex_try_later(
