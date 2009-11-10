@@ -1,335 +1,490 @@
-/**
- * @brief Laczenie poprzez protokol http z wykorzystaniem curl-a.
- * @author Piotr Truszkowski
- */
-
-#include <curl/curl.h>
-
-#include <rs/Http.hh>
-#include <rs/Exception.hh>
+#include "Http.hh"
 
 #include <iostream>
+#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>
 #include <fcntl.h>
+
 using std::cerr;
 using std::endl;
+using std::map;
 
-const Http::Error::Type Http::Error::None = "No errors";
-const Http::Error::Type Http::Error::NoMemory = "Not enought memory";
-const Http::Error::Type Http::Error::InvalidArgs = "Invalid arguments";
-const Http::Error::Type Http::Error::Cancel = "Operation canceled";
-const Http::Error::Type Http::Error::Failed = "Operation failed";
-const Http::Error::Type Http::Error::NoWrite = "Cannot write buffer to file";
-const Http::Error::Type Http::Error::NoAccess = "Cannot open file";
-const Http::Error::Type Http::Error::Timeout = "Timeout on connect";
-const Http::Error::Type Http::Error::NotConnect = "Couldn't connect";
+static curl_slist *attach_common_headers(void) throw()
+{
+  struct my_curl_list { 
+    curl_slist *slist;
 
-unsigned Http::_timeout_ms = 10000;
+    my_curl_list(void) : slist(NULL)
+    {
+      if (!(slist = curl_slist_append(slist, "User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.8.1.8) Gecko/20071028 PLD/3.0 (Th) BonEcho/2.0.0.8")))
+        throw EInternal("curl_slist_append() - fix it!");
+      if (!(slist = curl_slist_append(slist, "Keep-Alive: 300")))
+        throw EInternal("curl_slist_append() - fix it!");
+      if (!(slist = curl_slist_append(slist, "Connection: close"))) 
+        throw EInternal("curl_slist_append() - fix it!");
+    }
+    ~my_curl_list(void)
+    {
+      curl_slist_free_all(slist);
+    }
+  };
 
-Http::Http(void) throw()
-  : _header(NULL), _redirect(NULL), 
-  _err(Error::None), _st(Status::None), 
-  _hlen(0), _hreal(0) { _cookies[0] = 0; }
+  static my_curl_list list;
+  return list.slist;
+}
 
-Http::~Http(void) throw() { clear(); }
+const char *HttpError::what(void) const throw()
+{
+  switch (code) {
+    case HTTP_CONTINUE:
+      return "HTTP_CONTIMUE 100";
+    case HTTP_SWITCHING_PROTOCOLS:
+      return "HTTP_SWITCHING_PROTOCOLS 101";
+    case HTTP_PROCESSING:
+      return "HTTP_PROCESSING 102";
+    case HTTP_OK:
+      return "HTTP_OK 200";
+    case HTTP_CREATED:
+      return "HTTP_CREATED 201";
+    case HTTP_ACCEPTED:
+      return "HTTP_ACCEPTED 202";
+    case HTTP_NON_AUTHORITATIVE:
+      return "HTTP_NON_AUTHORITATIVE 203";
+    case HTTP_NO_CONTENT:
+      return "HTTP_NO_CONTENT 204";
+    case HTTP_RESET_CONTENT:
+      return "HTTP_RESET_CONTENT 205";
+    case HTTP_PARTIAL_CONTENT:
+      return "HTTP_PARTIAL_CONTENT 206";
+    case HTTP_MULTI_STATUS:
+      return "HTTP_MULTI_STATUS 207";
+    case HTTP_MULTIPLE_CHOICES:
+      return "HTTP_MULTIPLE_CHOICES 300";
+    case HTTP_MOVED_PERMANENTLY:
+      return "HTTP_MOVED_PERMANENTLY 301";
+    case HTTP_MOVED_TEMPORARILY:
+      return "HTTP_MOVED_TEMPORARILY 302";
+    case HTTP_SEE_OTHER:
+      return "HTTP_SEE_OTHER 303";
+    case HTTP_NOT_MODIFIED:
+      return "HTTP_NOT_MODIFIED 304";
+    case HTTP_USE_PROXY:
+      return "HTTP_USE_PROXY 305";
+    case HTTP_TEMPORARY_REDIRECT:
+      return "HTTP_TEMPORARY_REDIRECT 307";
+    case HTTP_BAD_REQUEST:
+      return "HTTP_BAD_REQUEST 400";
+    case HTTP_UNAUTHORIZED:
+      return "HTTP_UNAUTHORIZED 401";
+    case HTTP_PAYMENT_REQUIRED:
+      return "HTTP_PAYMENT_REQUIRED 402";
+    case HTTP_FORBIDDEN:
+      return "HTTP_FORBIDDEN 403";
+    case HTTP_NOT_FOUND:
+      return "HTTP_NOT_FOUND 404";
+    case HTTP_METHOD_NOT_ALLOWED:
+      return "HTTP_METHOD_NOT_ALLOWED 405";
+    case HTTP_NOT_ACCEPTABLE:
+      return "HTTP_NOT_ACCEPTABLE 406";
+    case HTTP_PROXY_AUTHENTICATION_REQUIRED:
+      return "HTTP_PROXY_AUTHENTICATION_REQUIRED 407";
+    case HTTP_REQUEST_TIME_OUT:
+      return "HTTP_REQUEST_TIME_OUT 408";
+    case HTTP_CONFLICT:
+      return "HTTP_CONFLICT 409";
+    case HTTP_GONE:
+      return "HTTP_GONE 410";
+    case HTTP_LENGTH_REQUIRED:
+      return "HTTP_LENGTH_REQUIRED 411";
+    case HTTP_PRECONDITION_FAILED:
+      return "HTTP_PRECONDITION_FAILED 412";
+    case HTTP_REQUEST_ENTITY_TOO_LARGE:
+      return "HTTP_REQUEST_ENTITY_TOO_LARGE 413";
+    case HTTP_REQUEST_URI_TOO_LARGE:
+      return "HTTP_REQUEST_URI_TOO_LARGE 414";
+    case HTTP_UNSUPPORTED_MEDIA_TYPE:
+      return "HTTP_UNSUPPORTED_MEDIA_TYPE 415";
+    case HTTP_RANGE_NOT_SATISFIABLE:
+      return "HTTP_RANGE_NOT_SATISFIABLE 416";
+    case HTTP_EXPECTATION_FAILED:
+      return "HTTP_EXPECTATION_FAILED 417";
+    case HTTP_UNPROCESSABLE_ENTITY:
+      return "HTTP_UNPROCESSABLE_ENTITY 422";
+    case HTTP_LOCKED:
+      return "HTTP_LOCKED 423";
+    case HTTP_FAILED_DEPENDENCY:
+      return "HTTP_FAILED_DEPENDENCY 424";
+    case HTTP_UPGRADE_REQUIRED:
+      return "HTTP_UPGRADE_REQUIRED 426";
+    case HTTP_INTERNAL_SERVER_ERROR:
+      return "HTTP_INTERNAL_SERVER_ERROR 500";
+    case HTTP_NOT_IMPLEMENTED:
+      return "HTTP_NOT_IMPLEMENTED 501";
+    case HTTP_BAD_GATEWAY:
+      return "HTTP_BAD_GATEWAY 502";
+    case HTTP_SERVICE_UNAVAILABLE:
+      return "HTTP_SERVICE_UNAVAILABLE 503";
+    case HTTP_GATEWAY_TIME_OUT:
+      return "HTTP_GATEWAY_TIME_OUT 504";
+    case HTTP_VERSION_NOT_SUPPORTED:
+      return "HTTP_VERSION_NOT_SUPPORTED 505";
+    case HTTP_VARIANT_ALSO_VARIES:
+      return "HTTP_VARIANT_ALSO_VARIES 506";
+    case HTTP_INSUFFICIENT_STORAGE:
+      return "HTTP_INSUFFICIENT_STORAGE 507";
+    case HTTP_NOT_EXTENDED:
+      return "HTTP_NOT_EXTENDED 510";
+    default:
+      return "unrecognized http code";
+  }
+}
 
-struct buffer_task {
+const char *CurlError::what(void) const throw()
+{
+  return curl_easy_strerror(code);
+}
+
+Http::Http(void) throw() 
+: curl(NULL),
+  conn_tout_(default_conn_timeout_in_msec), 
+  rdwr_tout_(default_rdwr_timeout_in_msec), 
+  header_(NULL), header_len_(0), header_max_(0), 
+  verbose_(false)
+{
+  if (!(curl = curl_easy_init()))
+    throw EInternal("nie mozna zaalokowac pamieci dla CURLa");
+}
+
+Http::~Http(void) throw()
+{
+  if (curl) curl_easy_cleanup(curl);
+  if (header_) delete[] header_;
+}
+
+void Http::clear(void)
+{
+  if (curl) curl_easy_reset(curl);
+  
+  if (header_) {
+    delete[] header_;
+    header_len_ = 0;
+    header_max_ = 0;
+  }
+
+  headers_map_.clear();
+}
+
+size_t Http::head_fn(void *buf, size_t sz, size_t nmemb, void *arg) 
+{
+  size_t size = sz * nmemb;
+  Http *h = (Http*)arg;
+
+  if (!h->header_max_) {
+    size_t max = (size+1) > h->header_def_len ? (size+1):h->header_def_len;
+    if (!(h->header_ = new(std::nothrow) char[max])) return CURLE_WRITE_ERROR; 
+    h->header_max_ = max;
+  } else if (h->header_len_ + size + 1 >= h->header_max_) {
+    size_t max = (h->header_len_ + size + 1) > (2*h->header_max_) ? 
+      (h->header_len_ + size + 1) : (2*h->header_max_);
+
+    char *ptr = new(std::nothrow) char[max];
+    if (!ptr) return CURLE_WRITE_ERROR;
+
+    strncpy(ptr, h->header_, h->header_len_+1);
+    assert(h->header_[h->header_len_]);
+
+    h->header_max_ = max;
+  }
+
+  assert(h->header_len_ + size + 1 <= h->header_max_);
+  if (size) memcpy(h->header_+h->header_len_, (char*)buf, size);
+  h->header_len_ += size;
+  h->header_[h->header_len_] = 0;
+
+  return size;
+}
+
+struct page_task {
   Http *http;
   char **page;
   size_t &len;
   size_t real;
-  Http::progress_fn fn;
-  void *data;
+  Http::callback_t fn;
+  void *arg;
   
-  buffer_task(Http *http, char **page, size_t &len, Http::progress_fn fn, void *data)
-    : http(http), page(page), len(len), real(0), fn(fn), data(data) { }
-  ~buffer_task(void) { }
-};
-
-struct stream_task {
-  Http *http;
-  int fd;
-  Http::progress_fn fn;
-  void *data;
-  off_t len;
-
-  stream_task(Http *http, int fd, Http::progress_fn fn, void *data)
-    : http(http), fd(fd), fn(fn), data(data), len(0) { }
-  ~stream_task(void) throw() 
-  {
-    if (fd >= 0 && close(fd)) throw EInternal(strerror(errno));
+  page_task(Http *http, char **page, size_t &len, Http::callback_t fn, void *arg)
+    : http(http), page(page), len(len), real(0), fn(fn), arg(arg) 
+  { 
+    (*page) = NULL; len = 0; 
+  }
+  ~page_task(void) 
+  { 
+    if (page) delete[] (*page);
   }
 };
 
-size_t def_real_header = 4096,
-       def_real_data = 16384;
-
-size_t Http::header_fn(void *buf, size_t size, size_t nmemb, void *data) {
-  size_t sz = size*nmemb;
-  Http *h = (Http*)data;
+size_t Http::page_fn(void *buf, size_t sz, size_t nmemb, void *arg) 
+{
+  size_t size = sz*nmemb;
+  page_task *task = (page_task*)arg;
   
-  if (h->_hreal == 0) {
-    size_t max = def_real_header < sz+1 ? sz+1 : def_real_header;
-
-    char *ptr = (char *)malloc(max);
-    if (!ptr) { h->set(Error::NoMemory); return CURLE_WRITE_ERROR; }
-
-    h->_header = ptr;
-    h->_hreal = max;
-  } else if (h->_hlen + sz + 1 > h->_hreal) {
-    size_t df = h->_hlen + sz + 1 > h->_hreal;
-    size_t max = h->_hreal + (h->_hreal < df ? df : h->_hreal);
-  
-    char *ptr = (char*)realloc(h->_header, max);
-    if (!ptr) { h->set(Error::NoMemory); return CURLE_WRITE_ERROR; }
+  if (!task->real) {
+    size_t max = page_def_len > (size+1) ? page_def_len:(size+1);
+    if (!((*task->page) = new(std::nothrow) char[max])) return CURLE_WRITE_ERROR;
     
-    h->_header = ptr;
-    h->_hreal = max;
-  }
-  
-  memcpy(h->_header + h->_hlen, buf, sz);
-  h->_hlen += sz;
-  h->_header[h->_hlen] = 0;
-
-  return sz;
-}
-
-size_t Http::buffer_fn(void *buf, size_t size, size_t nmemb, void *data) {
-  size_t sz = size*nmemb;
-  buffer_task *tsk = (buffer_task*)data;
-  
-  if (tsk->real == 0) {
-    size_t max = def_real_data < sz+1 ? sz+1 : def_real_data;
-    
-    if (!((*tsk->page) = new(std::nothrow) char[max])) {
-      tsk->http->set(Error::NoMemory); 
-      return CURLE_WRITE_ERROR; 
-    }
-    
-    tsk->real = max;
-  } else if (tsk->len + sz + 1 > tsk->real) {
-    size_t df = tsk->len + sz + 1 > tsk->real;
-    size_t max = tsk->real + (tsk->real < df ? df : tsk->real);
+    task->real = max;
+  } else if (task->len + size + 1 > task->real) {
+    size_t df = task->len + size + 1 > task->real;
+    size_t max = task->real + (task->real < df ? df : task->real);
   
     char *ptr = new(std::nothrow) char[max];
-    if (!ptr) { tsk->http->set(Error::NoMemory); return CURLE_WRITE_ERROR; }
-    memcpy(ptr, *tsk->page, tsk->len);
-    delete[] (*tsk->page);
+    if (!ptr) return CURLE_WRITE_ERROR;
+    memcpy(ptr, *task->page, task->len);
+    delete[] (*task->page);
     
-    (*tsk->page) = ptr;
-    tsk->real = max;
+    (*task->page) = ptr;
+    task->real = max;
   }
   
-  memcpy((*tsk->page) + tsk->len, buf, sz);
-  tsk->len += sz;
-  (*tsk->page)[tsk->len] = 0;
+  memcpy((*task->page) + task->len, buf, size);
+  task->len += size;
+  (*task->page)[task->len] = 0;
   
-  if (tsk->fn && !tsk->fn((const char*)buf, sz, tsk->data)) {
-    tsk->http->set(Error::Cancel);
+  if (task->fn && !task->fn((const char*)buf, size, task->arg))
     return CURLE_WRITE_ERROR;
-  }
 
-  return sz;
+  return size;
 }
 
-size_t Http::file_fn(void *buf, size_t size, size_t nmemb, void *data) {
-  size_t sz = size*nmemb;
-  stream_task *tsk = (stream_task*)data;
-  Http *h = tsk->http;
-  int fd = tsk->fd;
+int Http::get(char *&page, size_t &len, const char *url, 
+    const char *post, const char *cookies,
+    Http::callback_t fn, void *arg) throw(Exception)
+{
+  clear();
+  page_task task(this, &page, len, fn, arg);
+
+  if (curl_easy_setopt(curl, CURLOPT_URL, url) != CURLE_OK)
+    throw EExternal("nie mozna ustawic urla: '%s'", url);
+  if (post && curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post) != CURLE_OK)
+    throw EExternal("nie mozna ustawic POSTa: '%s'", post);
+  if (cookies && curl_easy_setopt(curl, CURLOPT_COOKIE, cookies) != CURLE_OK)
+    throw EExternal("nie mozna ustawic ciastek: '%s'", cookies);
+  if (rdwr_tout_ > 0 && curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, rdwr_tout_) != CURLE_OK)
+    throw EExternal("nie mozna ustawic timeoutu na odczyt/zapis: '%d'", rdwr_tout_);
+  if (conn_tout_ > 0 && curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, conn_tout_) != CURLE_OK)
+    throw EExternal("nie mozna ustawic timeoutu na polaczenie: '%d'", conn_tout_);
+  if (curl_easy_setopt(curl, CURLOPT_HTTPHEADER, attach_common_headers()) != CURLE_OK)
+    throw EExternal("nie mozna ustawic dodatkowych naglowkow");
+  if (verbose_ && curl_easy_setopt(curl, CURLOPT_VERBOSE, 1) != CURLE_OK)
+    throw EInternal("nie mozna ustawic trybu glosnego dla CURLa");
+  if (curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, page_fn) != CURLE_OK)
+    throw EInternal("nie mozna ustawic funkcji do odbioru danych");
+  if (curl_easy_setopt(curl, CURLOPT_WRITEDATA, &task) != CURLE_OK)
+    throw EInternal("nie mozna ustawic argumentu dla funkcji do odbioru danych");
+  if (curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, head_fn) != CURLE_OK)
+    throw EInternal("nie mozna ustawic funkcji do odbioru naglowkow");
+  if (curl_easy_setopt(curl, CURLOPT_HEADERDATA, this) != CURLE_OK)
+    throw EInternal("nie mozna ustawic argumentu dla funkcji do odbioru naglowkow");
+
+  CURLcode cd = curl_easy_perform(curl);
+  if (cd != CURLE_OK) {
+    if (cd == CURLE_OPERATION_TIMEOUTED) 
+      throw EOperationTimeout();
+    if (cd == CURLE_COULDNT_CONNECT)
+      throw ECouldntConnect();
+    if (cd == CURLE_COULDNT_RESOLVE_HOST)
+      throw ECouldntResolveHost();
+
+    throw CurlError(cd);
+  }
+
+  int code = do_analyze();
+  task.page = NULL; // zeby ~page_task() nie zwolnil pamieci, ktora zwracamy
+  return code;
+}
+
+struct file_task {
+  Http *http;
+  const char *path;
+  int fd;
+  off_t &len;
+  Http::callback_t fn;
+  void *data;
+
+  file_task(Http *http, const char *path, off_t &len, Http::callback_t fn, void *data)
+    : http(http), path(path), fd(-1), len(len), fn(fn), data(data)
+  { 
+    if ((fd = open(path, O_CREAT|O_RDWR|O_TRUNC, 0644)) < 0) 
+      throw EExternal("nie mozna otworzyc pliku '%s': %d, %s", 
+          path, errno, strerror(errno));
+    len = 0;
+  }
+  ~file_task(void) throw() 
+  {
+    if (fd >= 0 && close(fd)) 
+      throw EInternal("nie mozna zamknac pliku '%s': %d, %s",
+          path, errno, strerror(errno));
+  }
+};
+
+size_t Http::file_fn(void *buf, size_t sz, size_t nmemb, void *data) {
+  size_t size = sz*nmemb;
+  file_task *task = (file_task*)data;
+  int fd = task->fd;
 
   size_t done = 0;
 
-  while (done < sz) {
-    int wr = write(fd, (char*)buf+done, sz-done);
+  while (done < size) {
+    int wr = write(fd, (char*)buf+done, size-done);
     if (wr < 0) {
       if (errno == EINTR || errno == EAGAIN) continue;
-      h->set(Error::NoWrite); 
       return CURLE_WRITE_ERROR;
     }
     done += wr;
   }
 
-  if (tsk->fn && !tsk->fn((const char*)buf, sz, tsk->data)) {
-    h->set(Error::Cancel);
+  if (task->fn && !task->fn((const char*)buf, size, task->data))
     return CURLE_WRITE_ERROR;
-  }
   
-  tsk->len += sz;
-  return sz;
+  task->len += size;
+  return size;
 }
 
-static curl_slist *MoreHeaders(void) throw()
-{
-  static curl_slist *slist = NULL;
-  if (!slist) {
-    if (!(slist = curl_slist_append(slist, "User-Agent: Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.8.1.8) Gecko/20071028 PLD/3.0 (Th) BonEcho/2.0.0.8")))
-      throw EInternal("curl_slist_append() - fix it!");
-    if (!(slist = curl_slist_append(slist, "Keep-Alive: 300")))
-      throw EInternal("curl_slist_append() - fix it!");
-    if (!(slist = curl_slist_append(slist, "Connection: close"))) 
-      throw EInternal("curl_slist_append() - fix it!");
-  }
-  // FIXME : potrzeba jeszcze curl_slist_free_all(slist)
-  return slist;
-}
-
-size_t Http::get(char *&page, size_t &len, 
-    const char *url, const char *post, const char *cookies, 
-    Http::progress_fn fn, void *data, int msec) throw() 
+int Http::get(const char *path, off_t &len, const char *url, 
+    const char *post, const char *cookies,
+    Http::callback_t fn, void *arg) throw(Exception)
 {
   clear();
-  page = NULL;
-  len = 0;
+  file_task task(this, path, len, fn, arg);
 
-  _st = Status::Failed;
-  _err = Error::Failed;
+  if (curl_easy_setopt(curl, CURLOPT_URL, url) != CURLE_OK)
+    throw EExternal("nie mozna ustawic urla: '%s'", url);
+  if (post && curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post) != CURLE_OK)
+    throw EExternal("nie mozna ustawic POSTa: '%s'", post);
+  if (cookies && curl_easy_setopt(curl, CURLOPT_COOKIE, cookies) != CURLE_OK)
+    throw EExternal("nie mozna ustawic ciastek: '%s'", cookies);
+  if (rdwr_tout_ > 0 && curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, rdwr_tout_) != CURLE_OK)
+    throw EExternal("nie mozna ustawic timeoutu na odczyt/zapis: '%d'", rdwr_tout_);
+  if (conn_tout_ > 0 && curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, conn_tout_) != CURLE_OK)
+    throw EExternal("nie mozna ustawic timeoutu na polaczenie: '%d'", conn_tout_);
+  if (curl_easy_setopt(curl, CURLOPT_HTTPHEADER, attach_common_headers()) != CURLE_OK)
+    throw EExternal("nie mozna ustawic dodatkowych naglowkow");
+  if (verbose_ && curl_easy_setopt(curl, CURLOPT_VERBOSE, 1) != CURLE_OK)
+    throw EInternal("nie mozna ustawic trybu glosnego dla CURLa");
+  if (curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, file_fn) != CURLE_OK)
+    throw EInternal("nie mozna ustawic funkcji do odbioru danych");
+  if (curl_easy_setopt(curl, CURLOPT_WRITEDATA, &task) != CURLE_OK)
+    throw EInternal("nie mozna ustawic argumentu dla funkcji do odbioru danych");
+  if (curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, head_fn) != CURLE_OK)
+    throw EInternal("nie mozna ustawic funkcji do odbioru naglowkow");
+  if (curl_easy_setopt(curl, CURLOPT_HEADERDATA, this) != CURLE_OK)
+    throw EInternal("nie mozna ustawic argumentu dla funkcji do odbioru naglowkow");
 
-  CURL *curl = curl_easy_init();
-  if (!curl) { _err = Error::NoMemory; return -1; }
-
-  buffer_task tsk(this, &page, len, fn, data);
-
-  if (curl_easy_setopt(curl, CURLOPT_URL, url) != CURLE_OK ||
-      (post && curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post) != CURLE_OK) ||
-      (cookies && curl_easy_setopt(curl, CURLOPT_COOKIE, cookies) != CURLE_OK) ||
-      (msec > 0 && curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, msec) != CURLE_OK) ||
-      curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, _timeout_ms) != CURLE_OK ||
-      curl_easy_setopt(curl, CURLOPT_HTTPHEADER, MoreHeaders()) != CURLE_OK ||
-//      curl_easy_setopt(curl, CURLOPT_VERBOSE, 1) != CURLE_OK ||
-      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, buffer_fn) != CURLE_OK ||
-      curl_easy_setopt(curl, CURLOPT_WRITEDATA, &tsk) != CURLE_OK ||
-      curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_fn) != CURLE_OK ||
-      curl_easy_setopt(curl, CURLOPT_HEADERDATA, this) != CURLE_OK) {
-    curl_easy_cleanup(curl);
-    _err = Error::InvalidArgs;
-    return -1;
-  }
-  
   CURLcode cd = curl_easy_perform(curl);
   if (cd != CURLE_OK) {
-    if (cd == CURLE_OPERATION_TIMEOUTED) _err = Error::Timeout;
-    else if (cd == CURLE_COULDNT_CONNECT) _err = Error::NotConnect;
-    else _err = Error::Failed;
+    if (cd == CURLE_OPERATION_TIMEOUTED) 
+      throw EOperationTimeout();
+    if (cd == CURLE_COULDNT_CONNECT)
+      throw ECouldntConnect();
+    if (cd == CURLE_COULDNT_RESOLVE_HOST)
+      throw ECouldntResolveHost();
 
-    curl_easy_cleanup(curl);
-    return -1;
+    throw CurlError(cd);
   }
 
-  curl_easy_cleanup(curl);
-  
-  analyse();
-
-  return _err == Error::None ? tsk.len : -1;
+  return do_analyze();
 }
 
-off_t Http::get(const char *path,
-    const char *url, const char *post, const char *cookies, 
-    Http::progress_fn fn, void *data, int msec) throw() 
+int Http::do_analyze(void) 
 {
-  clear();
+  if (header_len_ < 10) 
+    throw EInternal("zbyt krotki naglowek?");
 
-  _st = Status::Failed;
-  _err = Error::Failed;
-
-  int fd = open(path, O_WRONLY|O_TRUNC|O_CREAT, 0644);
-  if (fd < 0) { _err = Error::NoAccess; return -1; }
-
-  // destruktor stream_task zamknie fd
-  stream_task tsk(this, fd, fn, data);
-  
-  CURL *curl = curl_easy_init();
-  if (!curl) { _err = Error::NoMemory; return -1; }
-
-  if (curl_easy_setopt(curl, CURLOPT_URL, url) != CURLE_OK ||
-      (post && curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post) != CURLE_OK) ||
-      (cookies && curl_easy_setopt(curl, CURLOPT_COOKIE, cookies) != CURLE_OK) ||
-      (msec > 0 && curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, msec) != CURLE_OK) ||
-      curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, _timeout_ms) != CURLE_OK ||
-      curl_easy_setopt(curl, CURLOPT_HTTPHEADER, MoreHeaders()) != CURLE_OK ||
-//      curl_easy_setopt(curl, CURLOPT_VERBOSE, 1) != CURLE_OK ||
-      curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, file_fn) != CURLE_OK ||
-      curl_easy_setopt(curl, CURLOPT_WRITEDATA, &tsk) != CURLE_OK ||
-      curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_fn) != CURLE_OK ||
-      curl_easy_setopt(curl, CURLOPT_HEADERDATA, this) != CURLE_OK) {
-    curl_easy_cleanup(curl);
-    _err = Error::InvalidArgs;
-    return -1;
-  }
-  
-  CURLcode cd = curl_easy_perform(curl);
-  if (cd != CURLE_OK) {
-    if (cd == CURLE_OPERATION_TIMEOUTED) _err = Error::Timeout;
-    else if (cd == CURLE_COULDNT_CONNECT) _err = Error::NotConnect;
-    else _err = Error::Failed;
-  
-    curl_easy_cleanup(curl);
-    return -1;
-  }
-
-  curl_easy_cleanup(curl);
-  analyse();
-
-  return _err == Error::None ? tsk.len : -1;
-}
-
-
-void Http::clear(void) {
-  if (_header) { free(_header); _header = NULL; }
-  if (_redirect) { free(_redirect); _redirect = NULL; }
-  _cookies[0]  = 0;
-  _hlen = _hreal = 0;
-  _st = 0;
-}
-
-void Http::analyse(void) {
-  if (_hlen < 10) return set(Status::Failed, Error::Failed);
-  
-  _st = Status::Failed;
-  _err = Error::None;
-
-  char *ptr = _header, *eol;
-  size_t c_len = 0, c_max = _cookies_max_len;
-  char *c_buf = _cookies;
+  char *ptr = header_, *eol;
+  headers_map_.clear();
+  int code = 0;
 
   while ((eol = strstr(ptr, "\r\n"))) {
+    if (eol == ptr) break;
+
     if (strncasecmp(ptr, "HTTP/", 5) == 0) {
       ptr += 5;
       while (ptr != eol && *ptr != ' ' && *ptr != '\t') ++ptr;
-      if (ptr == eol) set(Status::Failed, Error::Failed);
+      if (ptr == eol) throw EInternal("nie mozna odczytac naglowka 'HTTP/<wersja> <kod>'?");
       while (ptr != eol && (*ptr == ' ' || *ptr == '\t')) ++ptr;
-      _st = strtoul(ptr, NULL, 10);
+      code = strtol(ptr, NULL, 10);
       
-      if (_st < 100 || _st > 700) set(Status::Failed, Error::Failed);
-    } else if (strncasecmp(ptr, "Location:", 9) == 0) {
-      ptr += 9;
-      while (ptr != eol && (*ptr == ' ' || *ptr == '\t')) ++ptr;
-      *eol = 0;
-      _redirect = strdup(ptr);
-      *eol = '\r';
-      if (!_redirect) { _err = Error::NoMemory; return; }
-    } else if (strncasecmp(ptr, "Set-Cookie:", 11) == 0) {
-      ptr += 11;
-      while (ptr != eol && (*ptr == ' ' || *ptr == '\t')) ++ptr;
-      char *eoc = ptr;
-      while (eol != eoc && *eoc != ';') ++eoc;
-      if (eol == eoc) set(Status::Failed, Error::Failed);
-      char c = *eoc;
-      *eoc = 0;
-      size_t l = strlen(ptr);
-      *eoc = c;
-    
-      if (c_len + l + 3 > c_max) { _err = Error::NoMemory; return; }
-      strncpy(c_buf+c_len, ptr, l);
-      strncpy(c_buf+c_len+l, "; ", 2);
+      if (code < 100 || code >= 600) throw EInternal("odczytano nieprawidlowy numer kodu: %d", code);
+    } else {
+      char *to_change = NULL;
+      std::pair<const char*, const char*> ent;
+      ent.first = ptr;
       
-      c_len += l + 2;
-      c_buf[c_len] = 0;
+      for (size_t i = 0; ptr[0] != ':'; ++i, ++ptr) {
+        if (ptr == eol) throw EInternal("nie mozna odczytac naglowka?");
+        if (ptr[0] >= 'A' && ptr[0] <= 'Z') ptr[0] -= ('A'-'a');
+      }
+
+      to_change = ptr;
+      ptr[0] = 0; // oznaczamy koniec klucza
+      ++ptr;
+
+      while (ptr != eol && (*ptr == ' ' || *ptr == '\t')) ++ptr;
+      ent.second = ptr;
+
+      if (strcmp("set-cookie", ent.first)) {
+        eol[0] = 0; // oznaczamy koniec wartosci
+        headers_map_[ent.first] = ent.second;
+
+        to_change[0] = ':';
+        eol[0] = '\r';
+      } else {
+        // Dla cookies robimy dodatkowo tak:
+        while (ptr[0] != ';') 
+          if (ptr[0]) ++ptr; 
+          else throw EInternal("nie mozna odczytac ciastka?");
+        ptr[1] = 0; 
+
+        Headers::iterator it = headers_map_.find(ent.first);
+        if (it == headers_map_.end())
+          headers_map_[ent.first] = ent.second;
+        else 
+          it->second  = it->second + " " + ent.second;
+
+        to_change[0] = ':';
+        ptr[1] = ';';
+      }
     }
 
-    ptr = eol + 2;
+    ptr = eol + 2; // przewijamy na nastepny wpis
   }
+
+  //for (Headers::const_iterator it = headers_map_.begin(); it != headers_map_.end(); ++it)
+  //  cerr << "<> " << it->first << " => " << it->second << endl;
+
+  if (!code) throw EInternal("brakujaca informacja o kodzie http?");
+  if (code >= 400) throw HttpError(code);
+  return code;
 }
+
+const char *Http::get_recv_header(const char *key) const
+{
+  Headers::const_iterator it;
+  if ((it = headers_map_.find(key)) == headers_map_.end())
+    return NULL;
+  return it->second.c_str();
+}
+
+const char *Http::get_recv_cookies(void) const
+{
+  return get_recv_header("set-cookie");
+}
+
+const char *Http::get_recv_redirect(void) const
+{
+  return get_recv_header("location");
+}
+
 

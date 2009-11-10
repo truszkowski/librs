@@ -3,8 +3,8 @@
  * @author Piotr Truszkowski
  */
 
-#ifndef __RS_TIME_HH__
-#define __RS_TIME_HH__
+#ifndef __TIME_HH__
+#define __TIME_HH__
 
 #include <stdint.h>
 #include <cstdio>
@@ -12,12 +12,13 @@
 #include <ctime>
 #include <sys/time.h>
 
-#include <rs/Exception.hh>
+#include <Exception.hh>
 
 class Time {
   public:
     static const size_t stamp_length = 19;
 
+    // @brief: konwersja milisekund do timeval
     static timeval msec2timeval(int msec) throw()
     {
       timeval tv;
@@ -26,6 +27,7 @@ class Time {
       return tv;
     }
 
+    // @brief: aktualny czas w sekundach
     static uint32_t in_sec(void) throw()
     {
       timeval tv;
@@ -33,6 +35,7 @@ class Time {
       return tv.tv_sec;
     }
 
+    // @brief: aktualny czas w milisekundach
     static uint64_t in_msec(void) throw()
     {
       timeval tv;
@@ -40,6 +43,7 @@ class Time {
       return ((uint64_t)tv.tv_sec)*1000ULL + ((uint64_t)tv.tv_usec)/1000ULL;
     }
 
+    // @brief: aktualny czas w mikrosekundach
     static uint64_t in_usec(void) throw()
     {
       timeval tv;
@@ -47,12 +51,14 @@ class Time {
       return ((uint64_t)tv.tv_sec)*1000000ULL + ((uint64_t)tv.tv_usec);
     }
 
+    // @brief: stempel czasowy (uwaga na zmiennej statycznej)
     static const char *stamp(void) throw()
     {
       static char buf[stamp_length+1];
       return stamp(buf);
     }
 
+    // @brief: stempel czasowy
     static const char *stamp(char *buf) throw()
     {
       time_t t = time(0);
@@ -69,6 +75,7 @@ class Time {
       return buf;
     }
 
+    // @brief: konwersja stempla czasowego do liczby sekund
     static uint32_t stamp2secs(const char *stamp) throw()
     { 
       tm lt;

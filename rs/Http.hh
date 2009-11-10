@@ -1,78 +1,126 @@
-/**
- * @brief Laczenie poprzez protokol http z wykorzystaniem curl-a.
- * @author Piotr Truszkowski
- */
+#ifndef __HTTP_HH__
+#define __HTTP_HH__
 
-#ifndef __RS_HTTP_HH__
-#define __RS_HTTP_HH__
-
-#ifndef _FILE_OFFSET_BITS 
-# define _FILE_OFFSET_BITS 64
+#ifndef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 64
 #elif _FILE_OFFSET_BITS != 64
-# error "_FILE_OFFSET_BITS != 64"
+#error _FILE_OFFSET_BITS != 64
 #endif
 
 #include <cstdlib>
-#include <string>
+#include <cstring>
+#include <map>
+
+#include <curl/curl.h>
+#include <httpd/httpd.h>
+
+#include <Exception.hh>
+
+// @brief: blad wychwycony na poziomie http.
+class HttpError : public Exception {
+  public:
+    HttpError(int code) throw() : code(code) { }
+    ~HttpError(void) throw() { }
+
+    const char *what(void) const throw();
+    const int code; // kod odpowiedzi http
+};
+
+// @brief: blad wychwycony na poziomie CURLa
+class CurlError : public Exception {
+  public: 
+    CurlError(CURLcode code) throw() : code(code) { }
+    ~CurlError(void) throw() { }
+
+    const char *what(void) const throw();
+    const CURLcode code; // kod bledu curla
+};
+
+// @brief: Nie mozna sie polaczyc
+DEF_EXC(ECouldntConnect, Exception);
+// @brief: Nie mozna dostac nazwy ip hosta
+DEF_EXC(ECouldntResolveHost, Exception);
+// @brief: Nie mozna zapisac odebranych danych
+DEF_EXC(ECouldntWrite, Exception);
+// @brief: Przekroczony timeout na operacje
+DEF_EXC(EOperationTimeout, Exception);
 
 class Http {
   public:
-    // Jesli nie uda sie pobrac strony, do ustawiony bedzie jakis error.
-    struct Error {
-      typedef const char *Type;
-      static const Type None, NoMemory, InvalidArgs, Cancel, Failed, NoWrite, NoAccess, Timeout, NotConnect;
-    };
-
-    // None - jeszcze nie laczono,
-    // Failed - laczono ale syf,
-    // Ok == 200 - laczono i mamy strone
-    // i inne kody http 
-    struct Status {
-      typedef int Type;
-      static const Type None = 0, Failed = -1, Ok = 200;
-    };
-
-    // Funkcja postepu pobierania - jak zwroci false, pobieranie jest anulowane
-    typedef bool (*progress_fn)(const char *buf, size_t len, void *data);
-  
     Http(void) throw();
     ~Http(void) throw();
-  
-    size_t get(char *&page, size_t &len, // Pobierz strone, potem delete[] gdy page != NULL
-        const char *url, const char *post = NULL, const char *cookies = NULL, 
-        progress_fn fn = NULL, void *data = NULL, int msec = -1) throw();
-    off_t get(const char *path, // Pobierz strone do pliku
-        const char *url, const char *post = NULL, const char *cookies = NULL,
-        progress_fn fn = NULL, void *data = NULL, int msec = -1) throw();
-    void clear(void); // Czysc strukture Http
 
-    // Daj naglowek
-    const char *header(void) const { return _header; }
-    // Daj ciastka
-    const char *cookies(void) const { return _cookies; }
-    // Dokad jest przekierowanie (==NULL nie ma przekierowania)
-    const char *redirect(void) const { return _redirect; }
+    // @brief: callback, mozna na bierzaco monitorowac proces pobierania strony/pliku itd
+    // zwracajac false - anulujemy zadanie sciagania.
+    typedef bool (*callback_t)(const char *buf, size_t len, void *arg);
 
-    Error::Type  error(void) const { return _err; }
-    Status::Type status(void) const { return _st; }
-    
+    // @brief: mapa pol naglowka http (pola set-cookie sa sklejane)
+    typedef std::map<std::string, std::string> Headers;
+
+    // @brief: pobranie strony do pamieci, pod wskaznik 'page'
+    // @return: zwraca kod http (patrz: <httpd/httpd.h>)
+    int get(char *&page, size_t &len, const char *url, 
+        const char *post = NULL, const char *cookies = NULL,
+        callback_t fn = NULL, void *arg = NULL) throw(Exception);
+
+    // @brief: pobranie strony na dysk, pod sciezke 'path'
+    // @return: zwraca kod http (patrz: <httpd/httpd.h>)
+    int get(const char *path, off_t &len, const char *url, 
+        const char *post = NULL, const char *cookies = NULL,
+        callback_t fn = NULL, void *arg = NULL) throw(Exception);
+
+    // @brief: pobranie czystego naglowka http
+    const char *get_recv_header(void) const { return header_; }
+    // @brief: pobranie mapy otrzymanych naglowkow
+    const Headers &get_headers(void) const { return headers_map_; }
+    // @brief: pobranie wskazanego pola 'key' z naglowka
+    const char *get_recv_header(const char *key) const;
+    // @brief: pobranie pola 'location' z naglowka
+    const char *get_recv_redirect(void) const;
+    // @brief: pobranie pola 'set-cookie' z naglowka
+    // zapamietuje tylko do pierwszego ';' w polu - reszta pomijana, 
+    // jesli w naglowku jest wiele pol, to sa sklejane w jeden.
+    // XXX: moze da sie to zrobic tak aby jednak pamietac wszystko?
+    const char *get_recv_cookies(void) const;
+
+    // @brief: domyslny timeout na operacje odczytu/zapisu
+    static const int default_rdwr_timeout_in_msec = -1;
+    // @brief: domyslny timeout na operacje polaczenia
+    static const int default_conn_timeout_in_msec = 10000;
+
+    // @brief: zmiana timeoutu na operacje odczytu/zapisu
+    void set_conn_timeout(int t) { conn_tout_ = t; }
+    // @brief: zmiana timeoutu na operacje polaczenia
+    void set_rdwr_timeout(int t) { rdwr_tout_ = t; }
+    // @brief: pobranie aktualnego timeoutu na operacje odczytu/zapisu
+    int get_conn_timeout(void) const { return conn_tout_; }
+    // @brief: pobranie aktualnego timeoutu na operacje polaczenia
+    int get_rdwr_timeout(void) const { return rdwr_tout_; }
+
+    // @brief: ustaw wypisywanie sie curla, co sie dzieje
+    void set_verbose(bool yes_or_no) { verbose_ = yes_or_no; }
+
   private:
-    static const size_t _cookies_max_len = 4096;
-    static unsigned _timeout_ms;
-    char *_header, *_redirect;
-    char _cookies[_cookies_max_len];
-    Error::Type _err;
-    Status::Type _st;
-    size_t _hlen, _hreal;
+    Http(const Http &); // non-copyable
+    static const size_t header_def_len = 8192; // domyslny rozmiar naglowka http
+    static const size_t page_def_len = 8192; // domyslny rozmiar strony
 
-    Http(const Http &);
-    static size_t header_fn(void *buf, size_t size, size_t nmemb, void *data);
-    static size_t buffer_fn(void *buf, size_t size, size_t nmemb, void *data);
-    static size_t file_fn(void *buf, size_t size, size_t nmemb, void *data);
-    void set(Status::Type st, Error::Type er) { _st = st; _err = er; }
-    void set(Error::Type er) { _err = er; }
-    void analyse(void);
+    CURL *curl; // dla CURLa
+    int conn_tout_, rdwr_tout_; // timeouty
+
+    char *header_; // bufor na naglowek http
+    size_t header_len_, header_max_; // rozmiar w/w buforu
+    Headers headers_map_; // mapa pol w naglowku
+    bool verbose_;
+
+    void clear(void); // zresetowanie zasobow, zresetowanie CURLa (this->curl)
+    int do_analyze(void); // analiza naglowka http.
+
+    // funkcje do odczytu danych z sieci (naglowek, strona, plik)
+    static size_t head_fn(void *buf, size_t size, size_t nmemb, void *arg);
+    static size_t page_fn(void *buf, size_t size, size_t nmemb, void *arg);
+    static size_t file_fn(void *buf, size_t size, size_t nmemb, void *arg);
 };
 
-#endif
 
+#endif

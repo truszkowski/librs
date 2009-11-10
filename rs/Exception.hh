@@ -3,8 +3,8 @@
  * @author Piotr Truszkowski
  */
 
-#ifndef __RS_EXCEPTION_HH__
-#define __RS_EXCEPTION_HH__
+#ifndef __EXCEPTION_HH__
+#define __EXCEPTION_HH__
 
 #include <exception>
 #include <cstdlib>
@@ -13,12 +13,14 @@
 #include <cstring>
 #include <stdarg.h>
 
+// @brief: glowny wyjatek, po nim dziedzicza inne
 class Exception : public std::exception {
   public:
     Exception(void) throw() { }
     const char *what(void) const throw() { return "Exception"; }
 };
 
+// @brief: szablon dla wyjatkow prostych
 #define DEF_EXC(name, up)                       \
   class name : public up {                      \
     public:                                     \
@@ -30,6 +32,7 @@ class Exception : public std::exception {
       }                                         \
   }
 
+// @brief: szablon dla wyjatkow z opisem
 #define DEF_EXC_WITH_DESCR(name, up)            \
   class name : public up {                      \
     public:                                     \
@@ -57,20 +60,10 @@ class Exception : public std::exception {
   }
 
 
+// @brief: blad wewnetrzny, aplikacji lub blad w programie
 DEF_EXC_WITH_DESCR(EInternal, Exception);
+// @brief: blad zewnetrzy, bledne argumenty, itp...
 DEF_EXC_WITH_DESCR(EExternal, Exception);
-
-DEF_EXC(EInvalid   ,  Exception);
-DEF_EXC(EAlready   ,  Exception);
-DEF_EXC(ENotFound  ,  Exception);
-DEF_EXC(ENoAccess  ,  Exception);
-DEF_EXC(EAgain     ,  Exception);
-DEF_EXC(EResourses ,  Exception);
-DEF_EXC(ENoMemory  ,  EResourses);
-DEF_EXC(ENoSpace   ,  EResourses);
-DEF_EXC(EBusy      ,  EResourses);
-DEF_EXC(ELimit     ,  EResourses);
-DEF_EXC(ETimeout   ,  EResourses);
 
 #endif
 
