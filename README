@@ -3,6 +3,7 @@ Wymagania :
 
 	+ make, g++, stl   - do kompilacji :)
 	+ curl             - do polaczen http
+        + httpd            - do kodow odpowiedzi HTTP_*
 	+ boost            - do wyrazen regularnych, 
                                 operacji na plikach,
                                 wielowatkowosci
