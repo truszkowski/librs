@@ -287,17 +287,16 @@ struct rs_loop {
     }
 
     size_t wait_for = 0;
-    string stime, ssize;
+    string ssize;
     cmatch what;
 
     if (regex_search(buffer, what, rs_regex_time)) {
-      wait_for = strtol(stime.c_str(), 0, 10) + 5;
+      wait_for = strtol(what[1].str().c_str(), 0, 10) + 5;
       rsprintf("Czekam %zd sek...", wait_for);
     } else {
       wait_for = 5;
       rsprintf("Nieznany czas oczekiwania, sprobuje %zd sek...", wait_for);
     }
-    stime = what[1];
 
     if (!regex_search(buffer, what, rs_regex_size)) {
       rsprintf("Nieznany rozmiar pliku, jeszcze raz...");

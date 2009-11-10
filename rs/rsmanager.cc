@@ -53,6 +53,8 @@ void get_url(string &url)
     return;
   }
 
+  rsprintf("Pobieramy plik : '%s'\n", url.c_str());
+
   // ... i teraz czakamy az plik zostanie pobrany albo wystapi jakis blad
   while (true) {
     rs.get_info(info);
