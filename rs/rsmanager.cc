@@ -183,13 +183,11 @@ bool loop_fn(void)
 
   // Omijamy nieprawidlowe wpisy
   const char *prefix = "http://rapidshare.com";
-  if (url.compare(0, strlen(prefix), prefix)) {
-    rsprintf("Omijam wpis: '%s'\n", url.c_str());
-    return true;
-  }
 
-  // Pobieramy!
-  get_url(url); 
+  if (url.compare(0, strlen(prefix), prefix)) 
+    rsprintf("Omijam wpis: '%s'\n", url.c_str());
+  else 
+    get_url(url); 
 
   // Na koniec zastepujemy primary przez temporary
   try {
