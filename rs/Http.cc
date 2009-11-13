@@ -169,6 +169,7 @@ void Http::clear(void)
   
   if (header_) {
     delete[] header_;
+    header_ = NULL;
     header_len_ = 0;
     header_max_ = 0;
   }
