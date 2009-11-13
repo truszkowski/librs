@@ -85,7 +85,10 @@ static bool rs_is_ready = false;
 struct DExc { };
 struct DAgain : public DExc { };
 struct DBreak : public DExc { };
-struct DAbort : public DExc { };
+struct DAbort : public DExc { 
+  DAbort(RS::Status s) : status(s) { }
+  const RS::Status status;
+};
 
 static void rs_wait(RS::Status pre, RS::Status post, size_t secs)
 {
@@ -162,11 +165,11 @@ struct rs_loop {
           tries = 0; 
           continue; // wracamy na poczatek 'while'
         } 
-        catch (DAbort) { // odrzucono 
+        catch (DAbort &e) { // odrzucono 
           rsprintf("Nie udalo sie pobrac pliku: '%s', odrzucono przez rapidshare.com", rs_info.url.c_str());
 
           unique_lock<mutex> lock(rs_mutex);
-          rs_info.status = RS::Canceled;
+          rs_info.status = e.status; //RS::Canceled;
           rs_is_ready = false;
           break; // wychodzimu z 'while'
         }
@@ -176,6 +179,7 @@ struct rs_loop {
         unique_lock<mutex> lock(rs_mutex);
         rs_info.status = RS::Canceled;
         rs_is_ready = false;
+        break; // wyjscie z petli
       }
     }
   }
@@ -215,8 +219,8 @@ struct rs_loop {
         regex_search(buffer, rs_regex_not_found)) {
       rsprintf("Plik '%s' jest niedostepny", url.c_str());
       delete[] buffer;
-      rs_info.status = RS::NotFound;
-      throw DAbort();
+      //rs_info.status = RS::NotFound;
+      throw DAbort(RS::NotFound);
     }
 
     // Szukamy nastepnego url'a...
@@ -397,6 +401,7 @@ void RS::download(const char *url) throw(Exception)
 {
   unique_lock<mutex> lock(rs_mutex);
 
+  // jak status nie jest taki jak nizej to ok
   if (rs_info.status != None && rs_info.status != Downloaded &&
       rs_info.status != Canceled && rs_info.status != NotFound)
     throw EExternal("teraz sie pobierany plik: '%s' (status: '%s')",
@@ -492,6 +497,7 @@ void RS::close(void) throw(Exception)
   {
     unique_lock<mutex> lock(rs_mutex);
 
+    // jak status nie jest taki jak nizej to ok
     if (rs_info.status != None && rs_info.status != Downloaded &&
         rs_info.status != Canceled && rs_info.status != NotFound) 
       throw EExternal("nie mozna zamknac, plik '%s' jest pobierany (status: '%s')",
