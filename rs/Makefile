@@ -1,4 +1,4 @@
-CXXFLAGS := -ggdb3 -O0 -Wall -Wextra -I.. -I. -I/usr/include/apr-1/ -D_FILE_OFFSET_BITS=64 
+CXXFLAGS := -ggdb3 -O1 -Wall -Wextra -I.. -I. -I/usr/include/apr-1/ -D_FILE_OFFSET_BITS=64 
 
 src := $(wildcard *.cc)
 obj := $(subst .cc,.o,$(src))
@@ -27,14 +27,14 @@ libRS.a: RS.o
 	g++ $(CXXFLAGS) -c $<
 
 rsmanager: rsmanager.o libHttp.a libRS.a
-	g++ -ggdb3 -O0 -L. -o rsmanager rsmanager.o -lRS -lHttp \
+	g++ -ggdb3 -O1 -L. -o rsmanager rsmanager.o -lRS -lHttp \
 	  -lboost_thread -lboost_regex -lboost_filesystem -lcurl -lpthread
 
 test_http: test_http.o libHttp.a 
-	g++ -ggdb3 -O0 -L. -o test_http test_http.o -lHttp -lcurl
+	g++ -ggdb3 -O1 -L. -o test_http test_http.o -lHttp -lcurl
 
 test_rs: test_rs.o libRS.a libHttp.a
-	g++ -ggdb3 -O0 -L. -o test_rs test_rs.o -lRS -lHttp \
+	g++ -ggdb3 -O1 -L. -o test_rs test_rs.o -lRS -lHttp \
 	  -lboost_thread -lboost_regex -lboost_filesystem -lcurl -lpthread
 
 clean:

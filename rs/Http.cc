@@ -230,15 +230,15 @@ size_t Http::page_fn(void *buf, size_t sz, size_t nmemb, void *arg)
 {
   size_t size = sz*nmemb;
   page_task *task = (page_task*)arg;
-  
+
   if (!task->real) {
     size_t max = page_def_len > (size+1) ? page_def_len:(size+1);
     if (!((*task->page) = new(std::nothrow) char[max])) return CURLE_WRITE_ERROR;
     
     task->real = max;
   } else if (task->len + size + 1 > task->real) {
-    size_t df = task->len + size + 1 > task->real;
-    size_t max = task->real + (task->real < df ? df : task->real);
+    size_t dif = task->len + size + 1,
+           max = (2*task->real < dif) ? dif : (2*task->real);
   
     char *ptr = new(std::nothrow) char[max];
     if (!ptr) return CURLE_WRITE_ERROR;
