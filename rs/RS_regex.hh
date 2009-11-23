@@ -14,6 +14,8 @@ static const boost::regex rs_regex_try_later(
     "Or try again in about ");
 static const boost::regex rs_regex_server_busy(
     "Currently a lot of users are downloading files");
+static const boost::regex rs_regex_no_free_slots(
+    "There are no more download slots available for free users right now.");
 static const boost::regex rs_regex_already_downloading(
     "is already downloading a file.");
 static const boost::regex rs_regex_reached_limit(

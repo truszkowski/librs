@@ -284,6 +284,13 @@ struct rs_loop {
       throw DAgain();
     }
 
+    if (regex_search(buffer, rs_regex_server_busy)) {
+      rsprintf("Brak wolnych slotow, czekam...");
+      rs_wait(RS::Busy, RS::Preparing, rs_waiting_busy);
+      delete[] buffer;
+      throw DAgain();
+    }
+
     if (regex_search(buffer, rs_regex_already_downloading)) {
       rsprintf("Ktos o tym samym IP pobiera juz jakis plik, czekam...");
       rs_wait(RS::Rivalry, RS::Preparing, rs_waiting_rivalry);
