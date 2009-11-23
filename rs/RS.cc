@@ -264,14 +264,14 @@ struct rs_loop {
     }
 
     if (regex_search(buffer, rs_regex_try_later)) {
-      rsprintf("Sprobuje za chwile...");
+      rsprintf("Nie mozna teraz pobierac pliku, sprobuje za chwile, czekam...");
       rs_wait(RS::Waiting, RS::Preparing, rs_waiting_try_later);
       delete[] buffer;
       throw DAgain();
     }
 
     if (regex_search(buffer, rs_regex_reached_limit)) {
-      rsprintf("Wyczerpal sie limit pobran, czakam...");
+      rsprintf("Wyczerpal sie limit pobran, czekam...");
       rs_wait(RS::Limit, RS::Preparing, rs_waiting_limit);
       delete[] buffer;
       throw DAgain();
