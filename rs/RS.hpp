@@ -1,7 +1,7 @@
 #ifndef __RAPID_SHARE_HH__
 #define __RAPID_SHARE_HH__
 
-#include <Exception.hh>
+#include <Exception.hpp>
 #include <string>
 
 class RS {

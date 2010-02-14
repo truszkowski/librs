@@ -1,6 +1,6 @@
-#include <Exception.hh>
-#include <Time.hh>
-#include <RS.hh>
+#include <Exception.hpp>
+#include <Time.hpp>
+#include <RS.hpp>
 
 // C
 #include <signal.h>

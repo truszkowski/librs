@@ -1,17 +1,17 @@
 CXXFLAGS := -ggdb3 -O1 -Wall -Wextra -I.. -I. -I/usr/include/apr-1/ -D_FILE_OFFSET_BITS=64 
 
-src := $(wildcard *.cc)
-obj := $(subst .cc,.o,$(src))
+src := $(wildcard *.cpp)
+obj := $(subst .cpp,.o,$(src))
 
 all: ctags deps libHttp.a libRS.a rsmanager
 
 test: test_http test_rs
 
 ctags:
-	ctags *.{cc,hh}
+	ctags *.{cpp,hpp}
 
 deps:
-	g++ -MM *.cc -I.. > Makefile.deps
+	g++ -MM *.cpp -I.. > Makefile.deps
 
 -include Makefile.deps
 
