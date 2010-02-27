@@ -7,14 +7,16 @@ endif (COMMAND cmake_policy)
 project (rs)
 
 
-SET (CMAKE_CXX_FLAGS "-ggdb3 -O2 -Wall -Wextra -Werror -D_FILE_OFFSET_BITS=64")
+set (CMAKE_CXX_FLAGS "-ggdb3 -O2 -Wall -Wextra -Werror -D_FILE_OFFSET_BITS=64")
+
+include_directories ("/usr/include/apr-1/")
 
 add_library (RS RS.cpp)
 add_library (Http Http.cpp)
 
 add_executable (rsmanager rsmanager.cpp)
 add_executable (test_http test_http.cpp)
-add_executable (text_rs test_rs.cpp)
+add_executable (test_rs test_rs.cpp)
 
 target_link_libraries (rsmanager RS Http boost_thread boost_regex boost_filesystem curl pthread)
 target_link_libraries (test_http Http curl)

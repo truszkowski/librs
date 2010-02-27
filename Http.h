@@ -14,7 +14,7 @@
 #include <curl/curl.h>
 #include <httpd/httpd.h>
 
-#include <Exception.h>
+#include "Exception.h"
 
 // @brief: blad wychwycony na poziomie http.
 class HttpError : public Exception {

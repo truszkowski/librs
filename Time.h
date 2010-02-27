@@ -12,7 +12,7 @@
 #include <ctime>
 #include <sys/time.h>
 
-#include <Exception.h>
+#include "Exception.h"
 
 class Time {
   public:

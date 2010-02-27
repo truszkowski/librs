@@ -1,6 +1,6 @@
-#include <Exception.h>
-#include <Time.h>
-#include <RS.h>
+#include "Exception.h"
+#include "Time.h"
+#include "RS.h"
 
 // C
 #include <signal.h>
@@ -15,11 +15,11 @@ using namespace std;
 using namespace boost;
 
 // Glowny plik z kolejka zadan
-const char *primary_queue = "primary.queue";
+const char *primary_queue = "q/primary.queue";
 // Drugi plik z kolejka zadan, do niego dopisujemy nowe zadania
-const char *extends_queue = "extends.queue";
+const char *extends_queue = "q/extends.queue";
 // Tymczasowy plik na kolejkowanie zadan
-const char *temporary_queue = "temporary.queue";
+const char *temporary_queue = "q/temporary.queue";
 // Do tego katalogu pobieramy pliki
 const char *download_dir = "./d/";
 // Do tego katalogu zapisujemy strony html i naglowki http
