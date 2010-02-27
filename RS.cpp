@@ -1,6 +1,6 @@
-#include "RS.hpp"
-#include "Time.hpp"
-#include "Http.hpp"
+#include "RS.h"
+#include "Time.h"
+#include "Http.h"
 
 // C
 #include <fcntl.h>
@@ -19,7 +19,7 @@
 #include <boost/filesystem/fstream.hpp>
 
 // regexy
-#include "RS_regex.hpp"
+#include "RS_regex.h"
 
 using namespace std;
 using namespace boost;

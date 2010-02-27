@@ -3,8 +3,8 @@
  * @author Piotr Truszkowski
  */
 
-#ifndef __EXCEPTION_HH__
-#define __EXCEPTION_HH__
+#ifndef __EXCEPTION_H__
+#define __EXCEPTION_H__
 
 #include <exception>
 #include <cstdlib>

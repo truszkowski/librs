@@ -1,4 +1,4 @@
-#include <RS.hpp>
+#include <RS.h>
 #include <iostream>
 #include <cstdlib>
 

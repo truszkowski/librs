@@ -3,8 +3,8 @@
  * @author Piotr Truszkowski
  */
 
-#ifndef __TIME_HH__
-#define __TIME_HH__
+#ifndef __TIME_H__
+#define __TIME_H__
 
 #include <stdint.h>
 #include <cstdio>
@@ -12,7 +12,7 @@
 #include <ctime>
 #include <sys/time.h>
 
-#include <Exception.hpp>
+#include <Exception.h>
 
 class Time {
   public:

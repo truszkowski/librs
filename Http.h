@@ -1,5 +1,5 @@
-#ifndef __HTTP_HH__
-#define __HTTP_HH__
+#ifndef __HTTP_H__
+#define __HTTP_H__
 
 #ifndef _FILE_OFFSET_BITS
 #define _FILE_OFFSET_BITS 64
@@ -14,7 +14,7 @@
 #include <curl/curl.h>
 #include <httpd/httpd.h>
 
-#include <Exception.hpp>
+#include <Exception.h>
 
 // @brief: blad wychwycony na poziomie http.
 class HttpError : public Exception {
