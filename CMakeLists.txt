@@ -5,10 +5,12 @@ endif (COMMAND cmake_policy)
 
 
 project (rs)
+set (${PROJECT_NAME}_MAJOR_VERSION 0)
+set (${PROJECT_NAME}_MINOR_VERSION 2)
+set (${PROJECT_NAME}_PATCH_LEVEL 0)
 
 
-set (CMAKE_CXX_FLAGS "-ggdb3 -O2 -Wall -Wextra -Werror -D_FILE_OFFSET_BITS=64")
-
+add_definitions ("-ggdb3 -O2 -Wall -Wextra -Werror -D_FILE_OFFSET_BITS=64")
 include_directories ("/usr/include/apr-1/")
 
 add_library (RS RS.cpp)

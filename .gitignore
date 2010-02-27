@@ -8,3 +8,8 @@ CMakeCache.txt
 CMakeFiles/
 Makefile
 cmake_install.cmake
+libHttp.a
+libRS.a
+rsmanager
+test_http
+test_rs
