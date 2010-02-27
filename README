@@ -20,19 +20,19 @@ Pliki i katalogi:
 
         + 'extends.queue':
                 druga lista url z plikami do pobrania, tutaj wpisujemy kolejne
-                ¿±dania pobrania, gdy program jest w³±czony (i sam on sobie te 
+                zadania pobrania, gdy program jest wlaczony (i sam on sobie te 
                 zadania przerzuci do 'primary.queue'
 
         + 'temporary.queue':
-                kopia bezpieczeñstwa, dziêki niej mo¿emy wy³±czaæ i w³±czaæ w 
+                kopia bezpieczenstwa, dzieki niej mozemy wylaczac i wlaczac w 
                 dowolnej chwili bez utraty listy url czy pobranych plikow
 
         + rs.log
-                tutaj s± logowane operacje jakie s± podejmowane
+                tutaj sa logowane operacje jakie sa podejmowane
 
         + d/
-                tutaj s± zapisywane pobierane pliki
+                tutaj sa zapisywane pobierane pliki
 
         + s/
-                tutaj s± zapisywane pliki *.html i nag³ówki http.
+                tutaj sa zapisywane pliki *.html i nagowwki http.
 
